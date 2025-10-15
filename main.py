@@ -11,7 +11,6 @@ from requests_html import HTMLSession
 import re
 from urllib.parse import urlparse, urljoin
 
-
 # Load .env file
 load_dotenv()
 # --------------------------
@@ -21,9 +20,8 @@ GROUPME_BOT_ID = os.getenv("GROUPME_BOT_ID")
 
 BESTBUY_API_KEY = os.getenv("BESTBUY_API_KEY")
 
-MODEL="facebook/bart-large-cnn"
-GOOGLE_SEARCH_TERM='"AMD processors" "AMD news"'
-
+MODEL = "facebook/bart-large-cnn"
+GOOGLE_SEARCH_TERM = '"AMD processors" "AMD news"'
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL)
 model = AutoModelForSeq2SeqLM.from_pretrained(MODEL)
@@ -37,9 +35,6 @@ CATEGORY_IDS = {
 }
 
 USER_AGENT = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-# --------------------------
-# HELPER FUNCTIONS
-# --------------------------
 
 def shorten_url(url):
     api_url = "https://tinyurl.com/api-create.php"
@@ -58,14 +53,11 @@ def fetch_amd_news(limit=5, scrape_articles=True):
     news_list = []
     for entry in feed.entries[:limit]:
         article_content = scrape_article(entry.link) if scrape_articles else ""
-        news_list.append({
-            "title": entry.title,
-            "link": entry.link,
-            "content": article_content
-        })
+        news_list.append(
+            {"title": entry.title, "link": entry.link, "content": article_content}
+        )
 
     return news_list
-
 
 def fetch_bestbuy_amd_all(keyword="AMD", limit_per_category=10):
     """
@@ -89,13 +81,14 @@ def fetch_bestbuy_amd_all(keyword="AMD", limit_per_category=10):
             data = response.json()
             products = data.get("products", [])
             # print(products)
-            products = [p for p in products if "refurbished" not in p.get("name").lower() ]
+            products = [
+                p for p in products if "refurbished" not in p.get("name").lower()
+            ]
             # Filter out items with 0% discount
             products = [p for p in products if float(p.get("percentSavings", 0)) > 0]
-            
+
             # Sort by percentSavings descending
             products.sort(key=lambda x: float(x.get("percentSavings", 0)), reverse=True)
-
 
             # Limit results per category
             products = products[:limit_per_category]
@@ -108,17 +101,15 @@ def fetch_bestbuy_amd_all(keyword="AMD", limit_per_category=10):
 
     return all_products
 
-
-
 def scrape_google_news_search(query, max_items=10, debug=False):
     url = f"https://www.google.com/search?q={requests.utils.requote_uri(query)}&tbm=nws&hl=en-US&gl=US&ceid=US:en"
     r = requests.get(url, headers=USER_AGENT, timeout=10)
     # if debug:
-        # print("Status:", r.status_code)
+    # print("Status:", r.status_code)
     soup = BeautifulSoup(r.text, "html.parser")
     results = []
     seen = set()
-    
+
     # Google news results often contain <a> tags inside result cards, maybe with href
     for a in soup.find_all("a", href=True):
         href = a["href"]
@@ -128,7 +119,7 @@ def scrape_google_news_search(query, max_items=10, debug=False):
             if full in seen:
                 continue
             seen.add(full)
-            
+
             title = a.get_text(strip=True)
             # sometimes Google wraps link in /url?q=<real_url>&...
             m = re.search(r"/url\?q=([^&]+)", href)
@@ -142,7 +133,6 @@ def scrape_google_news_search(query, max_items=10, debug=False):
             if len(results) >= max_items:
                 break
     return results
-
 
 def fetch_amd_news_with_content(limit=5):
     items = scrape_google_news_search(GOOGLE_SEARCH_TERM, max_items=10, debug=False)
@@ -158,49 +148,43 @@ def fetch_amd_news_with_content(limit=5):
             headers = {"User-Agent": "Mozilla/5.0"}  # avoid being blocked
             response = requests.get(url, headers=headers, timeout=10)
             soup = BeautifulSoup(response.text, "html.parser")
-                
+
             # Remove all script and style tags
             for script in soup(["script", "style"]):
                 script.decompose()
                 # Remove any remaining unwanted tags
             # for tag in soup(["nav", "footer", "header", "aside"]):
             #     tag.decompose()
-                
+
             paragraphs = soup.find_all("p")
             article_text = " ".join([p.get_text(strip=True) for p in paragraphs])
-            results.append({
-                "title": title, 
-                "link": url,
-                "content": article_text
-            })
-            
-            
+            results.append({"title": title, "link": url, "content": article_text})
+
         except Exception as e:
             print(f"Failed to scrape {url}: {e}")
     return results
-        
+
 def fetch_amd_news_with_content_rss(limit=5):
     """Fetch AMD news with actual publisher URLs and scraped content."""
     feed_url = "https://news.google.com/rss/search?q=AMD&hl=en-US&gl=US&ceid=US:en"
     feed = feedparser.parse(feed_url)
-    
+
     news_list = []
 
     for entry in feed.entries[:limit]:
         title = entry.title
-        
+
         # Extract the real URL from the entry ID or link
         real_url = entry.link  # default to the link
         print(get_final_url(real_url))
 
-        
         # Try scraping the article content
         article_text = ""
         try:
             headers = {"User-Agent": "Mozilla/5.0"}  # avoid being blocked
             response = requests.get(real_url, headers=headers, timeout=10)
             soup = BeautifulSoup(response.text, "html.parser")
-            
+
             # Remove all script and style tags
             for script in soup(["script", "style"]):
                 script.decompose()
@@ -213,34 +197,32 @@ def fetch_amd_news_with_content_rss(limit=5):
             # Common selectors for news content
             paragraphs = soup.find_all("p")
             article_text = " ".join([p.get_text(strip=True) for p in paragraphs])
-            
+
             # optional: truncate if too long
             if len(article_text) > 3000:
                 article_text = article_text[:3000] + "..."
         except Exception as e:
             print(f"Failed to scrape {real_url}: {e}")
-        
-        news_list.append({
-            "title": title,
-            "link": real_url,
-            "content": article_text
-        })
-    
-    return news_list
-USER_AGENT = {"User-Agent": "Mozilla/5.0"}
 
+        news_list.append({"title": title, "link": real_url, "content": article_text})
+
+    return news_list
 
 def get_final_url(url, timeout=10, debug=False):
     source_domain = urlparse(url).netloc
     try:
         # 1) HEAD first (fast) and follow redirects
         try:
-            head = requests.head(url, headers=USER_AGENT, allow_redirects=True, timeout=timeout)
+            head = requests.head(
+                url, headers=USER_AGENT, allow_redirects=True, timeout=timeout
+            )
             final = head.url
             if debug:
                 print("HEAD ->", head.status_code, head.url)
                 if getattr(head, "history", None):
-                    print("HEAD history:", [(h.status_code, h.url) for h in head.history])
+                    print(
+                        "HEAD history:", [(h.status_code, h.url) for h in head.history]
+                    )
         except Exception as e_head:
             if debug:
                 print("HEAD failed:", e_head)
@@ -252,14 +234,20 @@ def get_final_url(url, timeout=10, debug=False):
             return final
 
         # 2) GET and follow redirects (some servers block HEAD or respond differently)
-        resp = requests.get(url, headers=USER_AGENT, allow_redirects=True, timeout=timeout)
+        resp = requests.get(
+            url, headers=USER_AGENT, allow_redirects=True, timeout=timeout
+        )
         if debug:
             print("GET ->", resp.status_code, resp.url)
             if resp.history:
                 print("GET history:", [(h.status_code, h.url) for h in resp.history])
 
         # If GET final location is external, return
-        if resp.url and urlparse(resp.url).netloc and urlparse(resp.url).netloc != source_domain:
+        if (
+            resp.url
+            and urlparse(resp.url).netloc
+            and urlparse(resp.url).netloc != source_domain
+        ):
             return resp.url
 
         # 3) If we're still on the source domain, inspect HTML for meta refresh / og:url / canonical / anchors
@@ -274,6 +262,7 @@ def get_final_url(url, timeout=10, debug=False):
         m = re.search(r"[?&](?:url|u)=((?:https?%3A%2F%2F)[^&]+)", url)
         if m:
             import urllib.parse
+
             decoded = urllib.parse.unquote(m.group(1))
             if debug:
                 print("Found encoded param url ->", decoded)
@@ -295,12 +284,16 @@ def summarize_text(text, title):
 
     # print("Summarizing...", title)
     input_text = "Summarize: \n" + text
-    inputs = tokenizer.encode(input_text, return_tensors="pt", max_length=512, truncation=True)
+    inputs = tokenizer.encode(
+        input_text, return_tensors="pt", max_length=512, truncation=True
+    )
 
     # outputs = model.generate(inputs, max_length=150, min_length=50, length_penalty=2.0, num_beams=4)
-    outputs = model.generate(inputs, max_length=512, min_length=50, length_penalty=2.0, num_beams=4)
+    outputs = model.generate(
+        inputs, max_length=512, min_length=50, length_penalty=2.0, num_beams=4
+    )
     summary = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    
+
     return summary
 
 def post_to_groupme(message):
@@ -317,19 +310,19 @@ def post_to_groupme(message):
         print("Error posting to GroupMe:", e)
 
 def gather_news_articles(news_results):
-    news_message=""
-    news_message+= "AMD NEWS\n"
-    news_message+= f"="*8 + "\n"
+    news_message = ""
+    news_message += "AMD NEWS\n"
+    news_message += f"=" * 8 + "\n"
     print(f"Summarizing {len(news_results)} articles...")
     for article in news_results:
-        if not article['content'] or "Please enable" in article['content']:
+        if not article["content"] or "Please enable" in article["content"]:
             continue
         title = article["title"]
         # print(f"Title: {article['title']}")
         # print(f"Link: {article['link']}")
         # print(f"Content: {article['content'][:200]}...")  # print first 200 chars
         # print(summarize_text(article['content']))
-        summarized= summarize_text(article['content'], title)
+        summarized = summarize_text(article["content"], title)
         # print("-" * 40)
         # print("\n")
         # news_headline=title
@@ -343,10 +336,10 @@ def gather_news_articles(news_results):
     return news_message
 
 def gather_bby_deals(amd_products):
-    str_multiplier=8
-    message = ""  
-    message+= "BEST BUY AMD DEALS"
-    
+    str_multiplier = 8
+    message = ""
+    message += "BEST BUY AMD DEALS"
+
     for category, products in amd_products.items():
         # print(f"\n=== {category.upper()} ===")
         message += f"\n{"="*str_multiplier} {category.upper()} {"="*str_multiplier}\n"
@@ -368,15 +361,13 @@ def gather_bby_deals(amd_products):
 def main():
     # news_list = fetch_amd_news()
     # u_input=input("what to search? >: ")
-    
+
     # amd_products = fetch_bestbuy_amd_all(keyword="AMD", limit_per_category=10)
     # amd_bby_deals = gather_bby_deals(amd_products)
     # post_to_groupme(amd_bby_deals)
-   
+
     news_results = fetch_amd_news_with_content()
-    news_message= gather_news_articles(news_results)
+    news_message = gather_news_articles(news_results)
     print(news_message)
-    
+
     post_to_groupme(news_message)
-
-
