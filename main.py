@@ -19,18 +19,14 @@ load_dotenv()
 # --------------------------
 GROUPME_BOT_ID = os.getenv("GROUPME_BOT_ID")
 
-# Best Buy AMD search (scraping example)
 BESTBUY_API_KEY = os.getenv("BESTBUY_API_KEY")
 
 MODEL="facebook/bart-large-cnn"
-# MODEL="microsoft/phi-3-mini-4k-instruct"
 GOOGLE_SEARCH_TERM='"AMD processors" "AMD news"'
 
-# microsoft/phi-3-mini-4k-instruct #? Maybe can provide better summarization
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL)
 model = AutoModelForSeq2SeqLM.from_pretrained(MODEL)
-# model = AutoModelForCausalLM.from_pretrained(MODEL)
 
 CATEGORY_IDS = {
     "laptops": "abcat0502000",
