@@ -359,15 +359,17 @@ def gather_bby_deals(amd_products):
 # MAIN LOGIC
 # --------------------------
 def main():
-    # news_list = fetch_amd_news()
     # u_input=input("what to search? >: ")
-
-    # amd_products = fetch_bestbuy_amd_all(keyword="AMD", limit_per_category=10)
-    # amd_bby_deals = gather_bby_deals(amd_products)
-    # post_to_groupme(amd_bby_deals)
+   
+    amd_products = fetch_bestbuy_amd_all(keyword="AMD", limit_per_category=10)
+    amd_bby_deals = gather_bby_deals(amd_products)
+    print(amd_bby_deals)
+    post_to_groupme(amd_bby_deals)
 
     news_results = fetch_amd_news_with_content()
     news_message = gather_news_articles(news_results)
     print(news_message)
-
     post_to_groupme(news_message)
+    
+if __name__ == "__main__":
+    main()
