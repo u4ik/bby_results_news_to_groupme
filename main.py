@@ -384,14 +384,3 @@ def main():
     post_to_groupme(news_message)
 
 
-
-
-  
-
-
-    
-
-
-# Example usage:
-if __name__ == "__main__":
-    main()
